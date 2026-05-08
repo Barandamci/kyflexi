@@ -1,15 +1,16 @@
-# [Project name]
+# Mesaj Uygulaması
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Kullanıcılar arasında gerçek zamanlı mesajlaşma deneyimi sunan Türkçe bir sohbet uygulaması.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm --filter @workspace/api-server run dev` — API sunucusunu çalıştır (port 8080)
+- `pnpm --filter @workspace/mesaj-uygulamasi run dev` — Frontend'i çalıştır
+- `pnpm run typecheck` — Tüm paketleri typecheck et
+- `pnpm run build` — Tüm paketleri derle
+- `pnpm --filter @workspace/db run push` — DB şemasını uygula (yalnızca geliştirme)
+- Codegen sonrası: `echo "export * from './generated/api';" > lib/api-zod/src/index.ts`
+- Gerekli env: `DATABASE_URL` — Postgres bağlantı dizisi
 
 ## Stack
 
@@ -17,29 +18,44 @@ _Replace the heading above with the project's name, and this line with one sente
 - API: Express 5
 - DB: PostgreSQL + Drizzle ORM
 - Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
+- Frontend: React + Vite + Tailwind CSS + shadcn/ui
+- API codegen: Orval (OpenAPI spec'ten)
 - Build: esbuild (CJS bundle)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `lib/api-spec/openapi.yaml` — API sözleşmesi (kaynak gerçeği)
+- `lib/db/src/schema/` — Drizzle tablo şemaları (users, conversations, messages)
+- `artifacts/api-server/src/routes/` — Express rota işleyicileri
+- `artifacts/mesaj-uygulamasi/src/pages/` — React sayfaları (home, chat, users)
+- `lib/api-client-react/src/generated/` — Üretilen React Query hook'ları
+- `lib/api-zod/src/generated/api.ts` — Üretilen Zod şemaları
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Demo kullanıcısı: userId=1 (Ahmet Yılmaz) — tüm mesajlaşma bu kullanıcı üzerinden çalışır
+- Orval codegen sonrası `lib/api-zod/src/index.ts` dosyası elle düzeltilmeli (sadece `generated/api` export etmeli)
+- Karanlık tema varsayılan, mor (primary) renk paleti
+- Mobil öncelikli (max-w-md), masaüstünde ortada görünür
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Konuşma listesi: Tüm sohbetler, son mesaj önizlemesi, okunmamış badge
+- Sohbet ekranı: Mesaj balonları (gönderilen sağda mor, alınan solda koyu), gerçek zamanlı mesaj gönderme
+- Kişiler sayfası: Tüm kullanıcılar, tek tıkla yeni sohbet başlatma
+- Çevrimiçi durum göstergesi (online/away/offline)
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Uygulama Türkçe
+- Karanlık mod varsayılan
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Codegen sonrası `lib/api-zod/src/index.ts` şunu içermeli: `export * from './generated/api';`
+- Orval zod client'ı `mode: "single"` ile tek dosyaya çıktı üretiyor
+- `pnpm --filter @workspace/api-spec exec orval --config ./orval.config.ts` ile sadece orval çalıştırılabilir
 
 ## Pointers
 
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- `pnpm-workspace` skill'i için workspace yapısı, TypeScript kurulumu ve paket detayları
