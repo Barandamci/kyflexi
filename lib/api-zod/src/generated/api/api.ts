@@ -54,6 +54,28 @@ export const GetUserResponse = zod.object({
 });
 
 /**
+ * @summary Update user profile
+ */
+export const UpdateUserParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateUserBody = zod.object({
+  name: zod.string().optional(),
+  avatarUrl: zod.string().nullish(),
+  status: zod.enum(["online", "offline", "away"]).optional(),
+});
+
+export const UpdateUserResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  username: zod.string(),
+  avatarUrl: zod.string().nullable(),
+  status: zod.enum(["online", "offline", "away"]),
+  createdAt: zod.coerce.date(),
+});
+
+/**
  * @summary List conversations for a user
  */
 export const ListConversationsQueryParams = zod.object({
@@ -193,4 +215,157 @@ export const GetUserStatsResponse = zod.object({
   totalConversations: zod.number(),
   totalMessagesSent: zod.number(),
   totalUnread: zod.number(),
+});
+
+/**
+ * @summary List groups for a user
+ */
+export const ListGroupsQueryParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+export const ListGroupsResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  avatarUrl: zod.string().nullable(),
+  createdAt: zod.coerce.date(),
+  members: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      username: zod.string(),
+      avatarUrl: zod.string().nullable(),
+      status: zod.enum(["online", "offline", "away"]),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  lastMessage: zod
+    .object({
+      id: zod.number(),
+      content: zod.string(),
+      senderId: zod.number(),
+      sentAt: zod.coerce.date(),
+    })
+    .nullable(),
+});
+export const ListGroupsResponse = zod.array(ListGroupsResponseItem);
+
+/**
+ * @summary Create a new group
+ */
+export const CreateGroupBody = zod.object({
+  name: zod.string(),
+  memberIds: zod.array(zod.number()),
+  avatarUrl: zod.string().nullish(),
+});
+
+/**
+ * @summary Get a group by ID
+ */
+export const GetGroupParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetGroupResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  avatarUrl: zod.string().nullable(),
+  createdAt: zod.coerce.date(),
+  members: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      username: zod.string(),
+      avatarUrl: zod.string().nullable(),
+      status: zod.enum(["online", "offline", "away"]),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary List messages in a group
+ */
+export const ListGroupMessagesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListGroupMessagesResponseItem = zod.object({
+  id: zod.number(),
+  groupId: zod.number(),
+  senderId: zod.number(),
+  content: zod.string(),
+  sentAt: zod.coerce.date(),
+  sender: zod.object({
+    id: zod.number(),
+    name: zod.string(),
+    username: zod.string(),
+    avatarUrl: zod.string().nullable(),
+    status: zod.enum(["online", "offline", "away"]),
+    createdAt: zod.coerce.date(),
+  }),
+});
+export const ListGroupMessagesResponse = zod.array(
+  ListGroupMessagesResponseItem,
+);
+
+/**
+ * @summary Send a message to a group
+ */
+export const SendGroupMessageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SendGroupMessageBody = zod.object({
+  senderId: zod.number(),
+  content: zod.string(),
+});
+
+/**
+ * @summary Add a member to a group
+ */
+export const AddGroupMemberParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const AddGroupMemberBody = zod.object({
+  userId: zod.number(),
+});
+
+/**
+ * @summary Request a presigned URL for file upload
+ */
+
+export const RequestUploadUrlBody = zod.object({
+  name: zod.string().min(1).describe("Original file name."),
+  size: zod.number().min(1).describe("File size in bytes."),
+  contentType: zod.string().min(1).describe("MIME type of the file."),
+});
+
+export const RequestUploadUrlResponse = zod.object({
+  uploadURL: zod.string().url().describe("Presigned GCS URL for PUT upload."),
+  objectPath: zod
+    .string()
+    .describe("Normalized object path. Store this in your database."),
+  metadata: zod
+    .object({
+      name: zod.string().min(1).describe("Original file name."),
+      size: zod.number().min(1).describe("File size in bytes."),
+      contentType: zod.string().min(1).describe("MIME type of the file."),
+    })
+    .optional(),
+});
+
+/**
+ * @summary Serve a public asset from PUBLIC_OBJECT_SEARCH_PATHS
+ */
+export const GetPublicObjectParams = zod.object({
+  filePath: zod.coerce.string(),
+});
+
+/**
+ * @summary Serve an object entity from PRIVATE_OBJECT_DIR
+ */
+export const GetStorageObjectParams = zod.object({
+  objectPath: zod.coerce.string(),
 });

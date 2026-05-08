@@ -16,6 +16,10 @@ tags:
     description: Conversation operations
   - name: messages
     description: Message operations
+  - name: groups
+    description: Group chat operations
+  - name: Storage
+    description: Object storage upload and serving endpoints.
 paths:
   /healthz:
     get:
@@ -77,6 +81,31 @@ paths:
       responses:
         "200":
           description: User found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: User not found
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update user profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchUserBody"
+      responses:
+        "200":
+          description: Updated user
           content:
             application/json:
               schema:
@@ -248,6 +277,217 @@ paths:
               schema:
                 $ref: "#/components/schemas/UserStats"
 
+  /groups:
+    get:
+      operationId: listGroups
+      tags: [groups]
+      summary: List groups for a user
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of group summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GroupSummary"
+    post:
+      operationId: createGroup
+      tags: [groups]
+      summary: Create a new group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGroupBody"
+      responses:
+        "201":
+          description: Created group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+
+  /groups/{id}:
+    get:
+      operationId: getGroup
+      tags: [groups]
+      summary: Get a group by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Group found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "404":
+          description: Group not found
+
+  /groups/{id}/messages:
+    get:
+      operationId: listGroupMessages
+      tags: [groups]
+      summary: List messages in a group
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of group messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GroupMessage"
+    post:
+      operationId: sendGroupMessage
+      tags: [groups]
+      summary: Send a message to a group
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendGroupMessageBody"
+      responses:
+        "201":
+          description: Sent group message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupMessage"
+
+  /groups/{id}/members:
+    post:
+      operationId: addGroupMember
+      tags: [groups]
+      summary: Add a member to a group
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddGroupMemberBody"
+      responses:
+        "201":
+          description: Member added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddGroupMemberResponse"
+
+  /storage/uploads/request-url:
+    post:
+      tags: [Storage]
+      operationId: requestUploadUrl
+      summary: Request a presigned URL for file upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestUploadUrlBody"
+      responses:
+        "200":
+          description: Presigned upload URL generated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequestUploadUrlResponse"
+        "400":
+          description: Missing or invalid required fields.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Failed to generate upload URL.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /storage/public-objects/{filePath}:
+    get:
+      tags: [Storage]
+      operationId: getPublicObject
+      summary: Serve a public asset from PUBLIC_OBJECT_SEARCH_PATHS
+      parameters:
+        - name: filePath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Object content streamed with correct Content-Type.
+          content:
+            "*/*":
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: File not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /storage/objects/{objectPath}:
+    get:
+      tags: [Storage]
+      operationId: getStorageObject
+      summary: Serve an object entity from PRIVATE_OBJECT_DIR
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Object content streamed with correct Content-Type.
+          content:
+            "*/*":
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Object not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
 components:
   schemas:
     HealthStatus:
@@ -295,6 +535,17 @@ components:
       required:
         - name
         - username
+
+    PatchUserBody:
+      type: object
+      properties:
+        name:
+          type: string
+        avatarUrl:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [online, offline, away]
 
     Conversation:
       type: object
@@ -434,3 +685,171 @@ components:
         - totalConversations
         - totalMessagesSent
         - totalUnread
+
+    Group:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        avatarUrl:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+      required:
+        - id
+        - name
+        - avatarUrl
+        - createdAt
+        - members
+
+    GroupSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        avatarUrl:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        lastMessage:
+          type: ["object", "null"]
+          properties:
+            id:
+              type: integer
+            content:
+              type: string
+            senderId:
+              type: integer
+            sentAt:
+              type: string
+              format: date-time
+          required:
+            - id
+            - content
+            - senderId
+            - sentAt
+      required:
+        - id
+        - name
+        - avatarUrl
+        - createdAt
+        - members
+        - lastMessage
+
+    GroupMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+        groupId:
+          type: integer
+        senderId:
+          type: integer
+        content:
+          type: string
+        sentAt:
+          type: string
+          format: date-time
+        sender:
+          $ref: "#/components/schemas/User"
+      required:
+        - id
+        - groupId
+        - senderId
+        - content
+        - sentAt
+        - sender
+
+    CreateGroupBody:
+      type: object
+      properties:
+        name:
+          type: string
+        memberIds:
+          type: array
+          items:
+            type: integer
+        avatarUrl:
+          type: ["string", "null"]
+      required:
+        - name
+        - memberIds
+
+    SendGroupMessageBody:
+      type: object
+      properties:
+        senderId:
+          type: integer
+        content:
+          type: string
+      required:
+        - senderId
+        - content
+
+    AddGroupMemberBody:
+      type: object
+      properties:
+        userId:
+          type: integer
+      required:
+        - userId
+
+    AddGroupMemberResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success
+
+    RequestUploadUrlBody:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Original file name.
+        size:
+          type: integer
+          minimum: 1
+          description: File size in bytes.
+        contentType:
+          type: string
+          minLength: 1
+          description: MIME type of the file.
+
+    RequestUploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+          format: uri
+          description: Presigned GCS URL for PUT upload.
+        objectPath:
+          type: string
+          description: Normalized object path. Store this in your database.
+        metadata:
+          $ref: "#/components/schemas/RequestUploadUrlBody"
+
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, asc } from "drizzle-orm";
-import { db, usersTable, messagesTable } from "@workspace/db";
+import { db, usersTable, messagesTable, conversationsTable } from "@workspace/db";
 import {
   ListMessagesParams,
   ListMessagesResponse,
@@ -8,6 +8,7 @@ import {
   SendMessageBody,
   DeleteMessageParams,
 } from "@workspace/api-zod";
+import { broadcastToUser } from "../lib/websocket";
 
 const router: IRouter = Router();
 
@@ -61,8 +62,23 @@ router.post("/conversations/:id/messages", async (req, res): Promise<void> => {
     .returning();
 
   const [sender] = await db.select().from(usersTable).where(eq(usersTable.id, msg.senderId));
+  const fullMsg = { ...msg, sender };
 
-  res.status(201).json({ ...msg, sender });
+  const [conv] = await db
+    .select()
+    .from(conversationsTable)
+    .where(eq(conversationsTable.id, params.data.id));
+
+  if (conv) {
+    const otherUserId = conv.user1Id === body.data.senderId ? conv.user2Id : conv.user1Id;
+    broadcastToUser(otherUserId, {
+      type: "new_message",
+      conversationId: params.data.id,
+      message: fullMsg,
+    });
+  }
+
+  res.status(201).json(fullMsg);
 });
 
 router.delete("/messages/:id", async (req, res): Promise<void> => {

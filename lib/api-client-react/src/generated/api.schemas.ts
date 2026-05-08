@@ -34,6 +34,22 @@ export interface CreateUserBody {
   avatarUrl?: string | null;
 }
 
+export type PatchUserBodyStatus =
+  (typeof PatchUserBodyStatus)[keyof typeof PatchUserBodyStatus];
+
+export const PatchUserBodyStatus = {
+  online: "online",
+  offline: "offline",
+  away: "away",
+} as const;
+
+export interface PatchUserBody {
+  name?: string;
+  /** @nullable */
+  avatarUrl?: string | null;
+  status?: PatchUserBodyStatus;
+}
+
 export interface Conversation {
   id: number;
   user1Id: number;
@@ -96,6 +112,99 @@ export interface UserStats {
   totalUnread: number;
 }
 
+export interface Group {
+  id: number;
+  name: string;
+  /** @nullable */
+  avatarUrl: string | null;
+  createdAt: string;
+  members: User[];
+}
+
+/**
+ * @nullable
+ */
+export type GroupSummaryLastMessage = {
+  id: number;
+  content: string;
+  senderId: number;
+  sentAt: string;
+} | null;
+
+export interface GroupSummary {
+  id: number;
+  name: string;
+  /** @nullable */
+  avatarUrl: string | null;
+  createdAt: string;
+  members: User[];
+  /** @nullable */
+  lastMessage: GroupSummaryLastMessage;
+}
+
+export interface GroupMessage {
+  id: number;
+  groupId: number;
+  senderId: number;
+  content: string;
+  sentAt: string;
+  sender: User;
+}
+
+export interface CreateGroupBody {
+  name: string;
+  memberIds: number[];
+  /** @nullable */
+  avatarUrl?: string | null;
+}
+
+export interface SendGroupMessageBody {
+  senderId: number;
+  content: string;
+}
+
+export interface AddGroupMemberBody {
+  userId: number;
+}
+
+export interface AddGroupMemberResponse {
+  success: boolean;
+}
+
+export interface RequestUploadUrlBody {
+  /**
+   * Original file name.
+   * @minLength 1
+   */
+  name: string;
+  /**
+   * File size in bytes.
+   * @minimum 1
+   */
+  size: number;
+  /**
+   * MIME type of the file.
+   * @minLength 1
+   */
+  contentType: string;
+}
+
+export interface RequestUploadUrlResponse {
+  /** Presigned GCS URL for PUT upload. */
+  uploadURL: string;
+  /** Normalized object path. Store this in your database. */
+  objectPath: string;
+  metadata?: RequestUploadUrlBody;
+}
+
+export interface ErrorEnvelope {
+  error: string;
+}
+
 export type ListConversationsParams = {
+  userId: number;
+};
+
+export type ListGroupsParams = {
   userId: number;
 };

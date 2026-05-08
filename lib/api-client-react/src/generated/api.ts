@@ -17,15 +17,27 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AddGroupMemberBody,
+  AddGroupMemberResponse,
   Conversation,
   ConversationSummary,
   CreateConversationBody,
+  CreateGroupBody,
   CreateUserBody,
+  ErrorEnvelope,
+  Group,
+  GroupMessage,
+  GroupSummary,
   HealthStatus,
   ListConversationsParams,
+  ListGroupsParams,
   MarkReadBody,
   MarkReadResponse,
   Message,
+  PatchUserBody,
+  RequestUploadUrlBody,
+  RequestUploadUrlResponse,
+  SendGroupMessageBody,
   SendMessageBody,
   User,
   UserStats,
@@ -343,6 +355,93 @@ export function useGetUser<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Update user profile
+ */
+export const getUpdateUserUrl = (id: number) => {
+  return `/api/users/${id}`;
+};
+
+export const updateUser = async (
+  id: number,
+  patchUserBody: PatchUserBody,
+  options?: RequestInit,
+): Promise<User> => {
+  return customFetch<User>(getUpdateUserUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(patchUserBody),
+  });
+};
+
+export const getUpdateUserMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateUser>>,
+    TError,
+    { id: number; data: BodyType<PatchUserBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateUser>>,
+  TError,
+  { id: number; data: BodyType<PatchUserBody> },
+  TContext
+> => {
+  const mutationKey = ["updateUser"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateUser>>,
+    { id: number; data: BodyType<PatchUserBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateUser(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateUser>>
+>;
+export type UpdateUserMutationBody = BodyType<PatchUserBody>;
+export type UpdateUserMutationError = ErrorType<void>;
+
+/**
+ * @summary Update user profile
+ */
+export const useUpdateUser = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateUser>>,
+    TError,
+    { id: number; data: BodyType<PatchUserBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateUser>>,
+  TError,
+  { id: number; data: BodyType<PatchUserBody> },
+  TContext
+> => {
+  return useMutation(getUpdateUserMutationOptions(options));
+};
 
 /**
  * @summary List conversations for a user
@@ -1038,6 +1137,795 @@ export function useGetUserStats<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetUserStatsQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List groups for a user
+ */
+export const getListGroupsUrl = (params: ListGroupsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/groups?${stringifiedParams}`
+    : `/api/groups`;
+};
+
+export const listGroups = async (
+  params: ListGroupsParams,
+  options?: RequestInit,
+): Promise<GroupSummary[]> => {
+  return customFetch<GroupSummary[]>(getListGroupsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListGroupsQueryKey = (params?: ListGroupsParams) => {
+  return [`/api/groups`, ...(params ? [params] : [])] as const;
+};
+
+export const getListGroupsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listGroups>>,
+  TError = ErrorType<unknown>,
+>(
+  params: ListGroupsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listGroups>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListGroupsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listGroups>>> = ({
+    signal,
+  }) => listGroups(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listGroups>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListGroupsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listGroups>>
+>;
+export type ListGroupsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List groups for a user
+ */
+
+export function useListGroups<
+  TData = Awaited<ReturnType<typeof listGroups>>,
+  TError = ErrorType<unknown>,
+>(
+  params: ListGroupsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listGroups>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListGroupsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a new group
+ */
+export const getCreateGroupUrl = () => {
+  return `/api/groups`;
+};
+
+export const createGroup = async (
+  createGroupBody: CreateGroupBody,
+  options?: RequestInit,
+): Promise<Group> => {
+  return customFetch<Group>(getCreateGroupUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createGroupBody),
+  });
+};
+
+export const getCreateGroupMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createGroup>>,
+    TError,
+    { data: BodyType<CreateGroupBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createGroup>>,
+  TError,
+  { data: BodyType<CreateGroupBody> },
+  TContext
+> => {
+  const mutationKey = ["createGroup"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createGroup>>,
+    { data: BodyType<CreateGroupBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createGroup(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateGroupMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createGroup>>
+>;
+export type CreateGroupMutationBody = BodyType<CreateGroupBody>;
+export type CreateGroupMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a new group
+ */
+export const useCreateGroup = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createGroup>>,
+    TError,
+    { data: BodyType<CreateGroupBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createGroup>>,
+  TError,
+  { data: BodyType<CreateGroupBody> },
+  TContext
+> => {
+  return useMutation(getCreateGroupMutationOptions(options));
+};
+
+/**
+ * @summary Get a group by ID
+ */
+export const getGetGroupUrl = (id: number) => {
+  return `/api/groups/${id}`;
+};
+
+export const getGroup = async (
+  id: number,
+  options?: RequestInit,
+): Promise<Group> => {
+  return customFetch<Group>(getGetGroupUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetGroupQueryKey = (id: number) => {
+  return [`/api/groups/${id}`] as const;
+};
+
+export const getGetGroupQueryOptions = <
+  TData = Awaited<ReturnType<typeof getGroup>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getGroup>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetGroupQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getGroup>>> = ({
+    signal,
+  }) => getGroup(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof getGroup>>, TError, TData> & {
+    queryKey: QueryKey;
+  };
+};
+
+export type GetGroupQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getGroup>>
+>;
+export type GetGroupQueryError = ErrorType<void>;
+
+/**
+ * @summary Get a group by ID
+ */
+
+export function useGetGroup<
+  TData = Awaited<ReturnType<typeof getGroup>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getGroup>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetGroupQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List messages in a group
+ */
+export const getListGroupMessagesUrl = (id: number) => {
+  return `/api/groups/${id}/messages`;
+};
+
+export const listGroupMessages = async (
+  id: number,
+  options?: RequestInit,
+): Promise<GroupMessage[]> => {
+  return customFetch<GroupMessage[]>(getListGroupMessagesUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListGroupMessagesQueryKey = (id: number) => {
+  return [`/api/groups/${id}/messages`] as const;
+};
+
+export const getListGroupMessagesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listGroupMessages>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listGroupMessages>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListGroupMessagesQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listGroupMessages>>
+  > = ({ signal }) => listGroupMessages(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listGroupMessages>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListGroupMessagesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listGroupMessages>>
+>;
+export type ListGroupMessagesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List messages in a group
+ */
+
+export function useListGroupMessages<
+  TData = Awaited<ReturnType<typeof listGroupMessages>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listGroupMessages>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListGroupMessagesQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Send a message to a group
+ */
+export const getSendGroupMessageUrl = (id: number) => {
+  return `/api/groups/${id}/messages`;
+};
+
+export const sendGroupMessage = async (
+  id: number,
+  sendGroupMessageBody: SendGroupMessageBody,
+  options?: RequestInit,
+): Promise<GroupMessage> => {
+  return customFetch<GroupMessage>(getSendGroupMessageUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(sendGroupMessageBody),
+  });
+};
+
+export const getSendGroupMessageMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendGroupMessage>>,
+    TError,
+    { id: number; data: BodyType<SendGroupMessageBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendGroupMessage>>,
+  TError,
+  { id: number; data: BodyType<SendGroupMessageBody> },
+  TContext
+> => {
+  const mutationKey = ["sendGroupMessage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendGroupMessage>>,
+    { id: number; data: BodyType<SendGroupMessageBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return sendGroupMessage(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendGroupMessageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendGroupMessage>>
+>;
+export type SendGroupMessageMutationBody = BodyType<SendGroupMessageBody>;
+export type SendGroupMessageMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Send a message to a group
+ */
+export const useSendGroupMessage = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendGroupMessage>>,
+    TError,
+    { id: number; data: BodyType<SendGroupMessageBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendGroupMessage>>,
+  TError,
+  { id: number; data: BodyType<SendGroupMessageBody> },
+  TContext
+> => {
+  return useMutation(getSendGroupMessageMutationOptions(options));
+};
+
+/**
+ * @summary Add a member to a group
+ */
+export const getAddGroupMemberUrl = (id: number) => {
+  return `/api/groups/${id}/members`;
+};
+
+export const addGroupMember = async (
+  id: number,
+  addGroupMemberBody: AddGroupMemberBody,
+  options?: RequestInit,
+): Promise<AddGroupMemberResponse> => {
+  return customFetch<AddGroupMemberResponse>(getAddGroupMemberUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(addGroupMemberBody),
+  });
+};
+
+export const getAddGroupMemberMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addGroupMember>>,
+    TError,
+    { id: number; data: BodyType<AddGroupMemberBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof addGroupMember>>,
+  TError,
+  { id: number; data: BodyType<AddGroupMemberBody> },
+  TContext
+> => {
+  const mutationKey = ["addGroupMember"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof addGroupMember>>,
+    { id: number; data: BodyType<AddGroupMemberBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return addGroupMember(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AddGroupMemberMutationResult = NonNullable<
+  Awaited<ReturnType<typeof addGroupMember>>
+>;
+export type AddGroupMemberMutationBody = BodyType<AddGroupMemberBody>;
+export type AddGroupMemberMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Add a member to a group
+ */
+export const useAddGroupMember = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addGroupMember>>,
+    TError,
+    { id: number; data: BodyType<AddGroupMemberBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof addGroupMember>>,
+  TError,
+  { id: number; data: BodyType<AddGroupMemberBody> },
+  TContext
+> => {
+  return useMutation(getAddGroupMemberMutationOptions(options));
+};
+
+/**
+ * @summary Request a presigned URL for file upload
+ */
+export const getRequestUploadUrlUrl = () => {
+  return `/api/storage/uploads/request-url`;
+};
+
+export const requestUploadUrl = async (
+  requestUploadUrlBody: RequestUploadUrlBody,
+  options?: RequestInit,
+): Promise<RequestUploadUrlResponse> => {
+  return customFetch<RequestUploadUrlResponse>(getRequestUploadUrlUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(requestUploadUrlBody),
+  });
+};
+
+export const getRequestUploadUrlMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestUploadUrl>>,
+    TError,
+    { data: BodyType<RequestUploadUrlBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof requestUploadUrl>>,
+  TError,
+  { data: BodyType<RequestUploadUrlBody> },
+  TContext
+> => {
+  const mutationKey = ["requestUploadUrl"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof requestUploadUrl>>,
+    { data: BodyType<RequestUploadUrlBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return requestUploadUrl(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RequestUploadUrlMutationResult = NonNullable<
+  Awaited<ReturnType<typeof requestUploadUrl>>
+>;
+export type RequestUploadUrlMutationBody = BodyType<RequestUploadUrlBody>;
+export type RequestUploadUrlMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Request a presigned URL for file upload
+ */
+export const useRequestUploadUrl = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestUploadUrl>>,
+    TError,
+    { data: BodyType<RequestUploadUrlBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof requestUploadUrl>>,
+  TError,
+  { data: BodyType<RequestUploadUrlBody> },
+  TContext
+> => {
+  return useMutation(getRequestUploadUrlMutationOptions(options));
+};
+
+/**
+ * @summary Serve a public asset from PUBLIC_OBJECT_SEARCH_PATHS
+ */
+export const getGetPublicObjectUrl = (filePath: string) => {
+  return `/api/storage/public-objects/${filePath}`;
+};
+
+export const getPublicObject = async (
+  filePath: string,
+  options?: RequestInit,
+): Promise<Blob> => {
+  return customFetch<Blob>(getGetPublicObjectUrl(filePath), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetPublicObjectQueryKey = (filePath: string) => {
+  return [`/api/storage/public-objects/${filePath}`] as const;
+};
+
+export const getGetPublicObjectQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPublicObject>>,
+  TError = ErrorType<ErrorEnvelope>,
+>(
+  filePath: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPublicObject>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetPublicObjectQueryKey(filePath);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicObject>>> = ({
+    signal,
+  }) => getPublicObject(filePath, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!filePath,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPublicObject>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPublicObjectQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPublicObject>>
+>;
+export type GetPublicObjectQueryError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Serve a public asset from PUBLIC_OBJECT_SEARCH_PATHS
+ */
+
+export function useGetPublicObject<
+  TData = Awaited<ReturnType<typeof getPublicObject>>,
+  TError = ErrorType<ErrorEnvelope>,
+>(
+  filePath: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPublicObject>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPublicObjectQueryOptions(filePath, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Serve an object entity from PRIVATE_OBJECT_DIR
+ */
+export const getGetStorageObjectUrl = (objectPath: string) => {
+  return `/api/storage/objects/${objectPath}`;
+};
+
+export const getStorageObject = async (
+  objectPath: string,
+  options?: RequestInit,
+): Promise<Blob> => {
+  return customFetch<Blob>(getGetStorageObjectUrl(objectPath), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetStorageObjectQueryKey = (objectPath: string) => {
+  return [`/api/storage/objects/${objectPath}`] as const;
+};
+
+export const getGetStorageObjectQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStorageObject>>,
+  TError = ErrorType<ErrorEnvelope>,
+>(
+  objectPath: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getStorageObject>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetStorageObjectQueryKey(objectPath);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getStorageObject>>
+  > = ({ signal }) =>
+    getStorageObject(objectPath, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!objectPath,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getStorageObject>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetStorageObjectQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStorageObject>>
+>;
+export type GetStorageObjectQueryError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Serve an object entity from PRIVATE_OBJECT_DIR
+ */
+
+export function useGetStorageObject<
+  TData = Awaited<ReturnType<typeof getStorageObject>>,
+  TError = ErrorType<ErrorEnvelope>,
+>(
+  objectPath: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getStorageObject>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStorageObjectQueryOptions(objectPath, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

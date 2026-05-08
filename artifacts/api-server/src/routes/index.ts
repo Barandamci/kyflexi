@@ -3,6 +3,8 @@ import healthRouter from "./health";
 import usersRouter from "./users";
 import conversationsRouter from "./conversations";
 import messagesRouter from "./messages";
+import groupsRouter from "./groups";
+import storageRouter from "./storage";
 
 const router: IRouter = Router();
 
@@ -10,5 +12,7 @@ router.use(healthRouter);
 router.use(usersRouter);
 router.use(conversationsRouter);
 router.use(messagesRouter);
+router.use(groupsRouter);
+router.use(storageRouter);
 
 export default router;
