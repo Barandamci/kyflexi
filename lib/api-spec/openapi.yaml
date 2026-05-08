@@ -3,13 +3,19 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Mesaj Uygulaması API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: users
+    description: User operations
+  - name: conversations
+    description: Conversation operations
+  - name: messages
+    description: Message operations
 paths:
   /healthz:
     get:
@@ -24,6 +30,224 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserBody"
+      responses:
+        "201":
+          description: Created user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get a user by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: User not found
+
+  /conversations:
+    get:
+      operationId: listConversations
+      tags: [conversations]
+      summary: List conversations for a user
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of conversations with last message and unread count
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ConversationSummary"
+    post:
+      operationId: createConversation
+      tags: [conversations]
+      summary: Create a new conversation between two users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateConversationBody"
+      responses:
+        "201":
+          description: Created conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+
+  /conversations/{id}:
+    get:
+      operationId: getConversation
+      tags: [conversations]
+      summary: Get a conversation by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Conversation found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+        "404":
+          description: Conversation not found
+
+  /conversations/{id}/messages:
+    get:
+      operationId: listMessages
+      tags: [messages]
+      summary: List messages in a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+    post:
+      operationId: sendMessage
+      tags: [messages]
+      summary: Send a message in a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageBody"
+      responses:
+        "201":
+          description: Sent message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+
+  /messages/{id}:
+    delete:
+      operationId: deleteMessage
+      tags: [messages]
+      summary: Delete a message
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Message deleted
+        "404":
+          description: Message not found
+
+  /conversations/{id}/read:
+    post:
+      operationId: markConversationRead
+      tags: [conversations]
+      summary: Mark all messages in a conversation as read for a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkReadBody"
+      responses:
+        "200":
+          description: Marked as read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarkReadResponse"
+
+  /users/{id}/stats:
+    get:
+      operationId: getUserStats
+      tags: [users]
+      summary: Get messaging stats for a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserStats"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +258,179 @@ components:
       required:
         - status
 
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        username:
+          type: string
+        avatarUrl:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [online, offline, away]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - username
+        - avatarUrl
+        - status
+        - createdAt
+
+    CreateUserBody:
+      type: object
+      properties:
+        name:
+          type: string
+        username:
+          type: string
+        avatarUrl:
+          type: ["string", "null"]
+      required:
+        - name
+        - username
+
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: integer
+        user1Id:
+          type: integer
+        user2Id:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        user1:
+          $ref: "#/components/schemas/User"
+        user2:
+          $ref: "#/components/schemas/User"
+      required:
+        - id
+        - user1Id
+        - user2Id
+        - createdAt
+        - user1
+        - user2
+
+    ConversationSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        otherUser:
+          $ref: "#/components/schemas/User"
+        lastMessage:
+          type: ["object", "null"]
+          properties:
+            id:
+              type: integer
+            content:
+              type: string
+            senderId:
+              type: integer
+            sentAt:
+              type: string
+              format: date-time
+          required:
+            - id
+            - content
+            - senderId
+            - sentAt
+        unreadCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - otherUser
+        - lastMessage
+        - unreadCount
+        - createdAt
+
+    CreateConversationBody:
+      type: object
+      properties:
+        user1Id:
+          type: integer
+        user2Id:
+          type: integer
+      required:
+        - user1Id
+        - user2Id
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+        conversationId:
+          type: integer
+        senderId:
+          type: integer
+        content:
+          type: string
+        isRead:
+          type: boolean
+        sentAt:
+          type: string
+          format: date-time
+        sender:
+          $ref: "#/components/schemas/User"
+      required:
+        - id
+        - conversationId
+        - senderId
+        - content
+        - isRead
+        - sentAt
+        - sender
+
+    SendMessageBody:
+      type: object
+      properties:
+        senderId:
+          type: integer
+        content:
+          type: string
+      required:
+        - senderId
+        - content
+
+    MarkReadBody:
+      type: object
+      properties:
+        userId:
+          type: integer
+      required:
+        - userId
+
+    MarkReadResponse:
+      type: object
+      properties:
+        updated:
+          type: integer
+      required:
+        - updated
+
+    UserStats:
+      type: object
+      properties:
+        totalConversations:
+          type: integer
+        totalMessagesSent:
+          type: integer
+        totalUnread:
+          type: integer
+      required:
+        - totalConversations
+        - totalMessagesSent
+        - totalUnread
