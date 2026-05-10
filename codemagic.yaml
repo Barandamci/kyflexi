@@ -5,9 +5,10 @@ workflows:
     environment:
       node: 18.17.0
     scripts:
+      - name: Install pnpm
+        script: npm install -g pnpm
       - name: Install dependencies
-        script: |
-          npm install --legacy-peer-deps
+        script: pnpm install --no-frozen-lockfile
       - name: Build APK
         script: |
           npx expo prebuild --platform android
