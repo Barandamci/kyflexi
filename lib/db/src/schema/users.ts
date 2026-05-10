@@ -7,6 +7,8 @@ export const usersTable = pgTable("users", {
   name: text("name").notNull(),
   username: text("username").notNull().unique(),
   email: text("email").unique(),
+  passwordHash: text("password_hash"),
+  isEmailVerified: boolean("is_email_verified").notNull().default(false),
   avatarUrl: text("avatar_url"),
   status: text("status", { enum: ["online", "offline", "away"] }).notNull().default("offline"),
   tickType: text("tick_type", { enum: ["blue", "black", "orange"] }),

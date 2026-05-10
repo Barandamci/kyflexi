@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 import { db, usersTable } from "@workspace/db";
 import { sendOtpEmail } from "../lib/mailer";
 
@@ -25,8 +26,29 @@ function cleanupExpired() {
   }
 }
 
-const SendOtpBody = z.object({
+function safeUser(user: typeof usersTable.$inferSelect) {
+  return {
+    id: user.id,
+    name: user.name,
+    username: user.username,
+    email: user.email,
+    avatarUrl: user.avatarUrl,
+    status: user.status,
+    tickType: user.tickType,
+    isEmailVerified: user.isEmailVerified,
+  };
+}
+
+const RegisterBody = z.object({
+  name: z.string().min(2).max(60),
+  username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/, "Sadece harf, rakam ve _ kullanılabilir"),
   email: z.string().email(),
+  password: z.string().min(6),
+});
+
+const LoginBody = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
 });
 
 const VerifyOtpBody = z.object({
@@ -34,22 +56,84 @@ const VerifyOtpBody = z.object({
   code: z.string().length(6),
 });
 
-router.post("/auth/send-otp", async (req, res): Promise<void> => {
-  const body = SendOtpBody.safeParse(req.body);
+const ResendOtpBody = z.object({
+  email: z.string().email(),
+});
+
+router.post("/auth/register", async (req, res): Promise<void> => {
+  const body = RegisterBody.safeParse(req.body);
   if (!body.success) {
-    res.status(400).json({ error: "Geçerli bir e-posta girin" });
+    const msg = body.error.errors[0]?.message ?? "Geçersiz bilgiler";
+    res.status(400).json({ error: msg });
     return;
   }
 
-  const email = body.data.email.toLowerCase().trim();
+  const { name, username, email, password } = body.data;
+  const emailLower = email.toLowerCase().trim();
+  const usernameLower = username.toLowerCase().trim();
+
+  const existing = await db
+    .select()
+    .from(usersTable)
+    .where(or(eq(usersTable.email, emailLower), eq(usersTable.username, usernameLower)));
+
+  if (existing.length > 0) {
+    const conflict = existing[0];
+    if (conflict.email === emailLower) {
+      res.status(409).json({ error: "Bu e-posta adresi zaten kullanılıyor" });
+    } else {
+      res.status(409).json({ error: "Bu kullanıcı adı zaten alınmış" });
+    }
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+
+  const [user] = await db
+    .insert(usersTable)
+    .values({
+      name: name.trim(),
+      username: usernameLower,
+      email: emailLower,
+      passwordHash,
+      isEmailVerified: false,
+      status: "offline",
+    })
+    .returning();
+
+  cleanupExpired();
+  const otp = generateOtp();
+  otpStore.set(emailLower, {
+    code: otp,
+    expiresAt: Date.now() + 10 * 60 * 1000,
+    userId: user.id,
+  });
+
+  try {
+    await sendOtpEmail(emailLower, otp);
+  } catch (err) {
+    req.log.error({ err }, "OTP gönderilemedi (register)");
+  }
+
+  res.status(201).json({ message: "Hesap oluşturuldu. Doğrulama kodu e-postanıza gönderildi.", email: emailLower });
+});
+
+router.post("/auth/login", async (req, res): Promise<void> => {
+  const body = LoginBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: "E-posta ve şifre girin" });
+    return;
+  }
+
+  const emailLower = body.data.email.toLowerCase().trim();
 
   const [user] = await db
     .select()
     .from(usersTable)
-    .where(eq(usersTable.email, email));
+    .where(eq(usersTable.email, emailLower));
 
-  if (!user) {
-    res.status(404).json({ error: "Bu e-posta ile kayıtlı kullanıcı bulunamadı" });
+  if (!user || !user.passwordHash) {
+    res.status(401).json({ error: "E-posta veya şifre yanlış" });
     return;
   }
 
@@ -58,26 +142,18 @@ router.post("/auth/send-otp", async (req, res): Promise<void> => {
     return;
   }
 
-  cleanupExpired();
-
-  const otp = generateOtp();
-  otpStore.set(email, {
-    code: otp,
-    expiresAt: Date.now() + 10 * 60 * 1000,
-    userId: user.id,
-  });
-
-  try {
-    await sendOtpEmail(email, otp);
-    req.log.info({ email }, "OTP gönderildi");
-    res.json({ message: "Doğrulama kodu e-posta adresinize gönderildi" });
-  } catch (err) {
-    req.log.error({ err }, "OTP e-posta gönderilemedi");
-    res.status(500).json({ error: "E-posta gönderilemedi. Lütfen tekrar deneyin." });
+  const match = await bcrypt.compare(body.data.password, user.passwordHash);
+  if (!match) {
+    res.status(401).json({ error: "E-posta veya şifre yanlış" });
+    return;
   }
+
+  await db.update(usersTable).set({ status: "online" }).where(eq(usersTable.id, user.id));
+
+  res.json({ user: { ...safeUser(user), status: "online" } });
 });
 
-router.post("/auth/verify-otp", async (req, res): Promise<void> => {
+router.post("/auth/verify-email", async (req, res): Promise<void> => {
   const body = VerifyOtpBody.safeParse(req.body);
   if (!body.success) {
     res.status(400).json({ error: "Geçersiz istek" });
@@ -106,31 +182,44 @@ router.post("/auth/verify-otp", async (req, res): Promise<void> => {
   otpStore.delete(email);
 
   const [user] = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.id, entry.userId));
+    .update(usersTable)
+    .set({ isEmailVerified: true, status: "online" })
+    .where(eq(usersTable.id, entry.userId))
+    .returning();
 
   if (!user) {
     res.status(404).json({ error: "Kullanıcı bulunamadı" });
     return;
   }
 
-  await db
-    .update(usersTable)
-    .set({ status: "online" })
-    .where(eq(usersTable.id, user.id));
+  res.json({ user: { ...safeUser(user), status: "online" } });
+});
 
-  res.json({
-    user: {
-      id: user.id,
-      name: user.name,
-      username: user.username,
-      email: user.email,
-      avatarUrl: user.avatarUrl,
-      status: "online",
-      tickType: user.tickType,
-    },
-  });
+router.post("/auth/resend-otp", async (req, res): Promise<void> => {
+  const body = ResendOtpBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: "Geçerli e-posta girin" });
+    return;
+  }
+
+  const email = body.data.email.toLowerCase().trim();
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+
+  if (!user) {
+    res.status(404).json({ error: "Kullanıcı bulunamadı" });
+    return;
+  }
+
+  cleanupExpired();
+  const otp = generateOtp();
+  otpStore.set(email, { code: otp, expiresAt: Date.now() + 10 * 60 * 1000, userId: user.id });
+
+  try {
+    await sendOtpEmail(email, otp);
+    res.json({ message: "Doğrulama kodu yeniden gönderildi" });
+  } catch {
+    res.status(500).json({ error: "E-posta gönderilemedi. Tekrar deneyin." });
+  }
 });
 
 router.get("/auth/me/:id", async (req, res): Promise<void> => {
@@ -141,7 +230,7 @@ router.get("/auth/me/:id", async (req, res): Promise<void> => {
   if (!user) { res.status(404).json({ error: "Kullanıcı bulunamadı" }); return; }
   if (user.isBanned) { res.status(403).json({ error: "Hesap askıya alındı" }); return; }
 
-  res.json({ id: user.id, name: user.name, username: user.username, email: user.email, avatarUrl: user.avatarUrl, status: user.status, tickType: user.tickType });
+  res.json(safeUser(user));
 });
 
 export default router;

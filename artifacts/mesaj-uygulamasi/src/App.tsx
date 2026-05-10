@@ -12,6 +12,7 @@ import Groups from "@/pages/groups";
 import GroupChat from "@/pages/group-chat";
 import Admin from "@/pages/admin";
 import Login from "@/pages/login";
+import Register from "@/pages/register";
 import CallScreen from "@/pages/call";
 import IncomingCallOverlay from "@/components/incoming-call-overlay";
 import { CallProvider } from "@/contexts/call-context";
@@ -34,6 +35,7 @@ function Router() {
     return (
       <Switch>
         <Route path="/login" component={Login} />
+        <Route path="/register" component={Register} />
         <Route>
           <Redirect to="/login" />
         </Route>
@@ -51,6 +53,9 @@ function Router() {
       <Route path="/group/:id" component={GroupChat} />
       <Route path="/admin" component={Admin} />
       <Route path="/login">
+        <Redirect to="/" />
+      </Route>
+      <Route path="/register">
         <Redirect to="/" />
       </Route>
       <Route component={NotFound} />
