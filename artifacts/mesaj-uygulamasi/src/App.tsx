@@ -10,6 +10,7 @@ import Users from "@/pages/users";
 import Profile from "@/pages/profile";
 import Groups from "@/pages/groups";
 import GroupChat from "@/pages/group-chat";
+import Admin from "@/pages/admin";
 import CallScreen from "@/pages/call";
 import IncomingCallOverlay from "@/components/incoming-call-overlay";
 import { CallProvider } from "@/contexts/call-context";
@@ -25,6 +26,7 @@ function Router() {
       <Route path="/profile" component={Profile} />
       <Route path="/groups" component={Groups} />
       <Route path="/group/:id" component={GroupChat} />
+      <Route path="/admin" component={Admin} />
       <Route component={NotFound} />
     </Switch>
   );

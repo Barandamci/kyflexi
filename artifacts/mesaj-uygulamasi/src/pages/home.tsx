@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useListConversations, getListConversationsQueryKey, useGetUser } from "@workspace/api-client-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageCirclePlus, Users, UserCircle } from "lucide-react";
+import { MessageCirclePlus, Users, Shield } from "lucide-react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -64,9 +64,19 @@ export default function Home() {
                 }`}
               />
             </button>
-            <h1 className="text-xl font-semibold tracking-tight">Mesajlar</h1>
+            <div className="flex items-center gap-2">
+              <img src="/logo.png" alt="Braw" className="w-7 h-7 rounded-lg object-cover" />
+              <h1 className="text-xl font-bold tracking-tight">Braw</h1>
+            </div>
           </div>
           <div className="flex items-center gap-2">
+            <Link
+              href="/admin"
+              className="inline-flex items-center justify-center w-9 h-9 rounded-full hover:bg-muted transition-colors text-muted-foreground"
+              title="Admin Paneli"
+            >
+              <Shield className="w-5 h-5" />
+            </Link>
             <Link
               href="/groups"
               className="inline-flex items-center justify-center w-9 h-9 rounded-full hover:bg-muted transition-colors text-muted-foreground"

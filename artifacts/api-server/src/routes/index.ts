@@ -5,6 +5,7 @@ import conversationsRouter from "./conversations";
 import messagesRouter from "./messages";
 import groupsRouter from "./groups";
 import storageRouter from "./storage";
+import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use(conversationsRouter);
 router.use(messagesRouter);
 router.use(groupsRouter);
 router.use(storageRouter);
+router.use(adminRouter);
 
 export default router;
