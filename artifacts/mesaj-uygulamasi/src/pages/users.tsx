@@ -4,12 +4,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, MessageCircle, Users } from "lucide-react";
-
-const CURRENT_USER_ID = 1;
+import { useAuth } from "@/contexts/auth-context";
 
 export default function UsersPage() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const { user: authUser } = useAuth();
+  const CURRENT_USER_ID = authUser?.id ?? 0;
 
   const { data: users, isLoading } = useListUsers({
     query: { queryKey: getListUsersQueryKey() },

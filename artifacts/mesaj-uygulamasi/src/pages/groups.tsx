@@ -6,8 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { useListUsers } from "@workspace/api-client-react";
-
-const CURRENT_USER_ID = 1;
+import { useAuth } from "@/contexts/auth-context";
 
 interface GroupSummary {
   id: number;
@@ -21,6 +20,8 @@ interface GroupSummary {
 export default function GroupsPage() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const { user: authUser } = useAuth();
+  const CURRENT_USER_ID = authUser?.id ?? 0;
   const [showCreate, setShowCreate] = useState(false);
   const [groupName, setGroupName] = useState("");
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);

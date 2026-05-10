@@ -1,15 +1,14 @@
 import React, { useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { useListConversations, getListConversationsQueryKey, useGetUser } from "@workspace/api-client-react";
+import { useListConversations, getListConversationsQueryKey } from "@workspace/api-client-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageCirclePlus, Users, Shield } from "lucide-react";
+import { MessageCirclePlus, Users, Shield, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import * as Tabs from "@radix-ui/react-tabs";
-
-const CURRENT_USER_ID = 1;
+import { useAuth } from "@/contexts/auth-context";
 
 interface GroupSummary {
   id: number;
@@ -23,6 +22,8 @@ interface GroupSummary {
 export default function Home() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const { user: currentUser } = useAuth();
+  const CURRENT_USER_ID = currentUser?.id ?? 0;
 
   const { data: conversations, isLoading: convsLoading } = useListConversations(
     { userId: CURRENT_USER_ID },
@@ -30,6 +31,7 @@ export default function Home() {
       query: {
         queryKey: getListConversationsQueryKey({ userId: CURRENT_USER_ID }),
         refetchInterval: 1000,
+        enabled: !!CURRENT_USER_ID,
       },
     }
   );
@@ -38,9 +40,8 @@ export default function Home() {
     queryKey: ["groups", CURRENT_USER_ID],
     queryFn: () => fetch(`/api/groups?userId=${CURRENT_USER_ID}`).then((r) => r.json()),
     refetchInterval: 1000,
+    enabled: !!CURRENT_USER_ID,
   });
-
-  const { data: currentUser } = useGetUser(CURRENT_USER_ID);
 
   return (
     <div className="flex flex-col h-[100dvh] bg-background animate-in fade-in duration-300">

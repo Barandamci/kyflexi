@@ -6,6 +6,7 @@ export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   username: text("username").notNull().unique(),
+  email: text("email").unique(),
   avatarUrl: text("avatar_url"),
   status: text("status", { enum: ["online", "offline", "away"] }).notNull().default("offline"),
   tickType: text("tick_type", { enum: ["blue", "black", "orange"] }),

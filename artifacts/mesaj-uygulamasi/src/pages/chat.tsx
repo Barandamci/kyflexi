@@ -16,8 +16,7 @@ import { ArrowLeft, Send, Phone } from "lucide-react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useCall } from "@/contexts/call-context";
-
-const CURRENT_USER_ID = 1;
+import { useAuth } from "@/contexts/auth-context";
 
 export default function Chat() {
   const { id } = useParams<{ id: string }>();
@@ -27,6 +26,8 @@ export default function Chat() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { initiateCall, callState } = useCall();
+  const { user: authUser } = useAuth();
+  const CURRENT_USER_ID = authUser?.id ?? 0;
 
   const { data: conversation, isLoading: convLoading } = useGetConversation(convId, {
     query: {

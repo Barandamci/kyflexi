@@ -8,8 +8,7 @@ import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useCall } from "@/contexts/call-context";
 import type { WsMessage } from "@/hooks/use-websocket";
-
-const CURRENT_USER_ID = 1;
+import { useAuth } from "@/contexts/auth-context";
 
 interface GroupMember {
   id: number;
@@ -43,6 +42,8 @@ export default function GroupChat() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { wsSend } = useCall();
+  const { user: authUser } = useAuth();
+  const CURRENT_USER_ID = authUser?.id ?? 0;
 
   const { data: group, isLoading: groupLoading } = useQuery<GroupDetail>({
     queryKey: ["group", groupId],

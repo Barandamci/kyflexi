@@ -1,13 +1,11 @@
 import { useState, useRef } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Camera, Check } from "lucide-react";
+import { ArrowLeft, Camera, Check, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useGetUser } from "@workspace/api-client-react";
 import { useUpload } from "@workspace/object-storage-web";
 import { useQueryClient } from "@tanstack/react-query";
-
-const CURRENT_USER_ID = 1;
+import { useAuth } from "@/contexts/auth-context";
 
 const STATUS_OPTIONS = [
   { value: "online", label: "Çevrimiçi", color: "bg-green-500" },
@@ -18,6 +16,8 @@ const STATUS_OPTIONS = [
 export default function Profile() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const { user, logout } = useAuth();
+  const CURRENT_USER_ID = user?.id ?? 0;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -25,9 +25,7 @@ export default function Profile() {
   const [localStatus, setLocalStatus] = useState<string | null>(null);
   const [localAvatar, setLocalAvatar] = useState<string | null>(null);
 
-  const { data: user, isLoading } = useGetUser(CURRENT_USER_ID, {
-    query: { refetchInterval: 5000 },
-  });
+  const isLoading = !user;
 
   const { uploadFile, isUploading, progress } = useUpload({
     onSuccess: async (response) => {
@@ -76,6 +74,13 @@ export default function Profile() {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h1 className="text-lg font-semibold flex-1">Profilim</h1>
+        <button
+          onClick={() => { logout(); setLocation("/login"); }}
+          className="p-2 rounded-full hover:bg-muted transition-colors text-muted-foreground"
+          title="Çıkış Yap"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
         <button
           onClick={() => saveUser()}
           disabled={saving || isUploading}

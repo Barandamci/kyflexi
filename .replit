@@ -33,3 +33,9 @@ externalPort = 80
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+GMAIL_USER = "noreply.braw@gmail.com"
+GMAIL_APP_PASSWORD = "rwkieaxpwhffgoqh"
